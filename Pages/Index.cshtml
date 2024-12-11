@@ -1,0 +1,123 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Travel Insurance ChatBot";
+}
+
+
+<!------------->
+<!-- Chatbot -->
+<!------------->
+<div class="chat-container">
+
+    <!--Step Indicators -->
+    <div class="step-indicator">
+        <div class="step" id="step1">
+            <div class="circle" id="circle1"></div>
+            <span>Select Cover</span>
+        </div>
+        <div class="step" id="step2">
+            <div class="circle" id="circle2"></div>
+            <span>Details</span>
+        </div>
+        <div class="step" id="step3">
+            <div class="circle" id="circle3"></div>
+            <span>Confirm</span>
+        </div>
+        <div class="step" id="step4">
+            <div class="circle" id="circle4"></div>
+            <span>Payment</span>
+        </div>
+    </div>
+
+    <!-- Header -->   
+    <div class="chat-header">
+        Travel Insurance Chatbot
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="messagesList">
+        <!-- Messages will be appended here -->
+    </div>
+
+    <!-- Footer -->
+    <div class="chat-input">
+        <input type="text" id="userInput" placeholder="Ask about Travel Insurance..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<!-- Scripts -->
+@section Scripts{
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jqueryui@1.11.1/jquery-ui.min.js"></script>
+    <!-- SignalR-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.18/signalr.min.js"></script>
+
+    <script>
+        //For Chatbot
+        const connection = new signalR.HubConnectionBuilder().withUrl("/chathub").build();
+
+        connection.on("ReceiveMessage", (user, message) => {
+            const msg = document.createElement("div");
+            msg.classList.add(user === "User" ? "user-message" : "bot-message");
+            msg.innerHTML = `${user}: ${message}`;
+            document.getElementById("messagesList").appendChild(msg);
+            scrollToBottom();
+        });
+
+        connection.start().catch(err => {
+            console.error('Connection failed: ', err.toString());
+            alert('Failed to connect to the server. Please check the console for more details.');
+        });
+
+        function sendMessage(user = "User", message) {
+            if (!message) {
+                message = document.getElementById("userInput").value;
+                document.getElementById("userInput").value = '';
+            }
+            connection.invoke("SendMessage", user, message).catch(err => {
+                console.error(err.toString());
+                alert('Failed to connect to the server. Please check the console for more details.');
+            });
+        }
+
+        function scrollToBottom() {
+            const messages = document.getElementById("messagesList");
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        document.querySelector("button").addEventListener("click", () => {
+            sendMessage();
+        });
+
+
+        
+        //For Step Indicators
+        connection.on("SectionCompleted", (sectionId) => {
+            markStepAsCompleted(sectionId);
+            activateNextStep(sectionId);
+        });
+
+        function markStepAsCompleted(sectionId) {
+            const stepId = sectionId.replace('step', '');  
+            const circle = document.getElementById(`circle${stepId}`);
+            if (circle) {
+                circle.classList.add("completed");  
+            }
+        }
+
+        function activateNextStep(currentSectionId) {
+            const currentStep = parseInt(currentSectionId.replace('step', ''));
+            const nextStep = currentStep + 1;
+            const nextStepElement = document.getElementById(`step${nextStep}`);
+            if (nextStepElement && !nextStepElement.classList.contains("active")) {
+                nextStepElement.classList.add("active");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.getElementById("step1").classList.add("active");
+        });
+    </script>
+}
